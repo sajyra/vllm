@@ -545,6 +545,42 @@ def test_encoder_cache_size_rejects_non_positive_values():
         _scheduler_config(max_num_batched_tokens=16384, encoder_cache_size=0)
 
 
+def test_encoder_compute_budget_defaults_to_max_num_batched_tokens():
+    config = _scheduler_config(max_num_batched_tokens=16384)
+    assert config.encoder_compute_budget is None
+
+    compute_budget, _ = compute_mm_encoder_budget(config, {"image": 2048})
+    assert compute_budget == 16384
+
+
+def test_encoder_compute_budget_is_independent_of_max_num_batched_tokens():
+    config = _scheduler_config(
+        max_num_batched_tokens=16384,
+        encoder_compute_budget=4096,
+        encoder_cache_size=8192,
+    )
+
+    compute_budget, cache_size = compute_mm_encoder_budget(config, {"image": 2048})
+    assert compute_budget == 4096
+    assert cache_size == 8192
+    # The language-model budget and the encoder-decoder sizing are unchanged.
+    assert config.max_num_batched_tokens == 16384
+    assert config.max_num_encoder_input_tokens == 16384
+
+
+def test_encoder_compute_budget_is_floored_to_the_largest_item():
+    config = _scheduler_config(max_num_batched_tokens=16384, encoder_compute_budget=100)
+
+    compute_budget, _ = compute_mm_encoder_budget(config, {"image": 2048})
+    # Otherwise a single item could never be scheduled.
+    assert compute_budget == 2048
+
+
+def test_encoder_compute_budget_rejects_non_positive_values():
+    with pytest.raises(ValueError):
+        _scheduler_config(max_num_batched_tokens=16384, encoder_compute_budget=0)
+
+
 def test_capacity_decides_whether_reuse_survives_another_request():
     """One item's encoder output is reusable by a later request only while it fits."""
     req_a = MockRequest("r1", ["imgA"], [4])

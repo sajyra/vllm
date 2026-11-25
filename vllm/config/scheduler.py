@@ -192,6 +192,19 @@ class SchedulerConfig:
 
     Resolved in `__post_init__`; never None afterwards."""
 
+    encoder_compute_budget: int | None = Field(default=None, ge=1)
+    """Per-step multimodal encoder compute budget in embedding tokens, or None
+    (the default) to use `max_num_batched_tokens`.
+
+    Caps how many encoder output tokens the scheduler may admit in one step,
+    independently of the language-model token budget. Raised to the largest
+    single item if that would not fit, so no item is ever unschedulable. The
+    encoder cache can also limit per-step encoding: set `encoder_cache_size`
+    at least this large to make this budget the binding one.
+
+    Does not change `max_num_encoder_input_tokens`, which also sizes
+    encoder-decoder cross-attention."""
+
     policy: SchedulerPolicy = "fcfs"
     """The scheduling policy to use:
 
@@ -351,6 +364,7 @@ class SchedulerConfig:
             "is_multimodal_model",
             "max_num_encoder_input_tokens",
             "encoder_cache_size",
+            "encoder_compute_budget",
             "policy",
             "disable_chunked_mm_input",
             "scheduler_cls",
