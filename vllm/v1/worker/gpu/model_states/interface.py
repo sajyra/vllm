@@ -16,6 +16,7 @@ from vllm.tasks import GenerationTask
 from vllm.v1.attention.backend import AttentionCGSupport
 from vllm.v1.core.sched.output import NewRequestData
 from vllm.v1.kv_cache_interface import KVCacheConfig
+from vllm.v1.utils import record_function_or_nullcontext
 from vllm.v1.worker.encoder_cudagraph import EncoderCudaGraphManager
 from vllm.v1.worker.gpu.block_table import BlockTables
 from vllm.v1.worker.gpu.input_batch import InputBatch, InputBuffers
@@ -216,8 +217,11 @@ class ModelState(ABC):
             scheduled_encoder_inputs
         )
         if mm_kwargs:
-            with self.encoder_runner.timed_encoder_operation(
-                scheduled_encoder_inputs.keys()
+            with (
+                record_function_or_nullcontext("mm encoder"),
+                self.encoder_runner.timed_encoder_operation(
+                    scheduled_encoder_inputs.keys()
+                ),
             ):
                 encoder_outputs = self.encoder_runner.execute_mm_encoder(mm_kwargs)
             self.encoder_cache.encoder_outputs.update(zip(mm_hashes, encoder_outputs))
